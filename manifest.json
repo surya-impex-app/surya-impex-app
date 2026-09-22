@@ -1,7 +1,7 @@
 {
   "name": "SURYA IMPEX Stock & Invoice",
   "short_name": "SURYA IMPEX",
-  "start_url": "./Index.html",
+  "start_url": "./"
   "display": "standalone",
   "background_color": "#f4f7fb",
   "theme_color": "#1769e0",
