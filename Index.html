@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>SURYA IMPEX Stock & Invoice</title>
+<style>
+:root{--a:#1769e0;--bg:#f4f7fb;--card:#fff;--text:#172033;--muted:#667085;--border:#dbe2ea;--ok:#16834b;--danger:#c62828}
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:var(--bg);color:var(--text)}
+header{background:#fff;border-bottom:1px solid var(--border);padding:14px 16px;position:sticky;top:0;z-index:5}
+h1{font-size:20px;margin:0}.sub{font-size:12px;color:var(--muted);margin-top:4px}
+main{max-width:900px;margin:auto;padding:14px}.tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+button,.btn{border:0;border-radius:10px;padding:12px 14px;font-weight:700;cursor:pointer;background:#e9eef6;color:var(--text);min-height:44px}
+button.primary{background:var(--a);color:#fff}.danger{background:#fee4e2!important;color:var(--danger)!important}
+.panel{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:12px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+label{font-size:12px;font-weight:700;color:var(--muted);display:block}input{width:100%;margin-top:5px;padding:12px;border:1px solid var(--border);border-radius:9px;font-size:16px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.row>*{flex:1}.small{font-size:12px;color:var(--muted)}
+.hidden{display:none!important}.product{display:grid;grid-template-columns:64px 1fr auto;gap:10px;align-items:center;border-bottom:1px solid var(--border);padding:10px 0}
+.product img{width:64px;height:64px;object-fit:contain;background:#fff;border:1px solid var(--border);border-radius:8px}.name{font-weight:700}.price{font-weight:700}.stock{font-size:12px;color:var(--ok)}
+video{width:100%;max-height:360px;object-fit:cover;border-radius:12px;background:#111}.cameraBox{background:#111;border-radius:12px;padding:8px}
+#invoiceTable{width:100%;border-collapse:collapse;font-size:13px}#invoiceTable th,#invoiceTable td{border-bottom:1px solid var(--border);padding:8px;text-align:left}
+.total{text-align:right;font-size:18px;font-weight:800;margin-top:12px}
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#172033;color:#fff;padding:11px 16px;border-radius:20px;display:none;z-index:20}
+@media(max-width:560px){.tabs{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}main{padding:10px}}
+@media print{header,.tabs,.noPrint{display:none!important}body{background:#fff}.panel{border:0}.printOnly{display:block!important}}
+.printOnly{display:none}
+</style>
+
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#1769e0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="SURYA IMPEX">
+
+</head>
+<body>
+<header><h1>SURYA IMPEX</h1><div class="sub">Mobile Stock + Barcode Sale Invoice</div></header>
+<main>
+<div class="tabs">
+<button data-tab="sale" class="primary">🧾 New Sale</button>
+<button data-tab="stock">📦 Stock In</button><button data-tab="countstock">📷 Count Stock</button>
+<button data-tab="products">🔎 Products</button>
+<button data-tab="reports">📄 Reports</button>
+</div>
+
+<section id="sale" class="tab panel">
+<h2>New Sale</h2>
+<div class="panel">
+<div class="row">
+<button id="scanSale" class="primary">📷 Scan Barcode</button>
+<button id="manualSale">⌨️ Enter Barcode</button>
+</div>
+<input id="saleCameraFile" type="file" accept="image/*" capture="environment" class="hidden"><div id="saleCamera" class="cameraBox hidden">
+<video id="video" playsinline></video>
+<div class="row noPrint"><button id="stopCamera">Stop Camera</button></div>
+<div class="small">📱 Tap Scan Barcode → phone camera opens → take barcode photo. The app reads the barcode and adds it automatically.</div>
+</div>
+</div>
+<div id="saleFound"></div>
+<div class="panel">
+<label>Customer Name<input id="customer" placeholder="Customer"></label>
+</div>
+<table id="invoiceTable"><thead><tr><th>Product</th><th>MRP</th><th>Qty</th><th>Total</th><th></th></tr></thead><tbody></tbody></table>
+<div class="total">Invoice Total: ₹<span id="invoiceTotal">0.00</span></div>
+<div class="row noPrint" style="margin-top:12px"><button id="saveInvoice" class="primary">💾 Save & Print PDF</button><button id="clearSale">Clear</button></div>
+</section>
+
+<section id="stock" class="tab panel hidden">
+<h2>Stock In</h2>
+<p class="small">Photo + barcode/SKU + product name + MRP + quantity. Purchase cost is not stored.</p>
+<div class="panel">
+<div class="row"><button id="stockScan" class="primary">📷 Scan Barcode</button><button id="stockPhotoBtn">📸 Product Photo</button></div>
+<input id="stockPhoto" type="file" accept="image/*" capture="environment" class="hidden">
+<input id="stockCameraFile" type="file" accept="image/*" capture="environment" class="hidden"><div id="stockCamera" class="cameraBox hidden"><video id="stockVideo" playsinline></video><div class="row noPrint"><button id="stockStop">Stop Camera</button></div></div>
+</div>
+<div class="grid">
+<label>Barcode / EAN<input id="sBarcode"></label>
+<label>SKU<input id="sSku"></label>
+<label>Product Name<input id="sName"></label>
+<label>MRP<input id="sMrp" inputmode="decimal"></label>
+<label>Quantity<input id="sQty" type="number" min="1" value="1"></label>
+<label>Photo<input id="sPhotoFile" type="file" accept="image/*" capture="environment"></label>
+</div>
+<div class="row" style="margin-top:12px"><button id="addStock" class="primary">➕ Add / Update Stock</button><button id="resetStock">Reset</button></div>
+<div class="panel noPrint"><strong>PDF Stock Import</strong><input id="stockPdf" type="file" accept="application/pdf"><div class="small">This prototype records the uploaded PDF filename; automatic PDF line extraction can be connected as the next backend step.</div></div>
+</section>
+
+<section id="countstock" class="tab panel hidden">
+<h2>📷 Count Existing Stock</h2>
+<p class="small">Scan the same barcode repeatedly. Every successful scan automatically adds <b>+1</b>. Take the product photo only the first time if needed.</p>
+<div class="panel"><div class="row"><button id="countStart" class="primary">📷 Start Scanner</button><button id="countManual">⌨️ Manual Barcode</button><button id="countStop">Stop</button></div>
+<div id="countCamera" class="cameraBox hidden" style="margin-top:10px"><video id="countVideo" playsinline></video><div class="small">Every successful scan adds +1.</div></div>
+<input id="countCameraFile" type="file" accept="image/*" capture="environment" class="hidden"></div>
+<div id="countCurrent" class="panel"><strong>Ready</strong><div class="small">No barcode scanned yet.</div></div>
+<div class="grid"><label>New Product Name<input id="countName" placeholder="Only for a new barcode"></label><label>SKU<input id="countSku" placeholder="Optional"></label><label>MRP<input id="countMrp" inputmode="decimal" placeholder="Only for a new barcode"></label><label>Product Photo<input id="countPhotoFile" type="file" accept="image/*" capture="environment"></label></div>
+<div class="row" style="margin-top:12px"><button id="countSave" class="primary">💾 Save Counted Stock</button><button id="countClear">Clear Count</button></div>
+<div class="panel" style="margin-top:12px"><strong>Current Count</strong><div id="countList"></div><div class="total">Total Scanned: <span id="countTotal">0</span></div></div>
+</section>
+
+<section id="products" class="tab panel hidden">
+<h2>Products & Stock</h2>
+<input id="search" placeholder="Search barcode, SKU or product name">
+<div id="productList"></div>
+</section>
+
+<section id="reports" class="tab panel hidden">
+<h2>Reports</h2>
+<div class="row">
+<button id="stockPdfBtn" class="primary">📄 Print Stock PDF</button>
+<button id="invoiceHistoryBtn">🧾 Invoice History</button><button id="driveSettings">☁️ Drive Backup</button>
+</div>
+<div id="history" style="margin-top:12px"></div>
+</section>
+
+<section id="drivePanel" class="panel hidden">
+<h2>☁️ Google Drive Backup</h2>
+<p class="small">Paste your Google Apps Script Web App URL once. The app will send stock and invoice data to your Google Drive backup.</p>
+<label>Google Apps Script Web App URL<input id="driveUrl" placeholder="https://script.google.com/macros/s/.../exec"></label>
+<div class="row" style="margin-top:10px">
+<button id="saveDriveUrl" class="primary">Save URL</button>
+<button id="backupNow">Backup Now</button>
+<button id="restoreNow">Restore</button>
+</div>
+<div id="driveStatus" class="small" style="margin-top:8px"></div>
+</section>
+
+<section id="printArea" class="printOnly">
+<h2>SURYA IMPEX — SALE INVOICE</h2><div id="printMeta"></div><table id="printTable"></table><div id="printTotal"></div>
+</section>
+</main><div id="toast"></div>
+
+<script>
+const KEY='surya_impex_stock_v1', INV='surya_impex_invoices_v1';
+let stock=JSON.parse(localStorage.getItem(KEY)||'[]'), invoices=JSON.parse(localStorage.getItem(INV)||'[]');
+let cart=[], currentPhoto='', stream=null, cameraMode='';
+const $=id=>document.getElementById(id);
+function save(){
+ localStorage.setItem(KEY,JSON.stringify(stock));
+ localStorage.setItem(INV,JSON.stringify(invoices));
+ scheduleDriveBackup();
+}
+let backupTimer=null;
+function scheduleDriveBackup(){
+ clearTimeout(backupTimer);
+ backupTimer=setTimeout(()=>backupToDrive(false),1200);
+}
+function driveUrl(){return localStorage.getItem('SURYA_DRIVE_URL')||''}
+async function backupToDrive(manual=true){
+ const url=driveUrl();
+ if(!url){if(manual)toast('First add Google Drive Web App URL');return}
+ $('driveStatus').textContent='Backing up…';
+ const payload={action:'backup',timestamp:new Date().toISOString(),stock,invoices};
+ try{
+   const r=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});
+   const t=await r.text();
+   if(!r.ok) throw new Error(t);
+   $('driveStatus').textContent='Last backup: '+new Date().toLocaleString('en-IN');
+   if(manual)toast('Google Drive backup saved');
+ }catch(e){
+   $('driveStatus').textContent='Backup failed. Check Web App URL and internet.';
+   if(manual)toast('Drive backup failed');
+ }
+}
+async function restoreFromDrive(){
+ const url=driveUrl();
+ if(!url){toast('First add Google Drive Web App URL');return}
+ $('driveStatus').textContent='Restoring…';
+ try{
+   const r=await fetch(url+'?action=restore');
+   const data=await r.json();
+   if(data.status!=='OK') throw new Error(data.message||'Restore failed');
+   if(Array.isArray(data.stock)) stock=data.stock;
+   if(Array.isArray(data.invoices)) invoices=data.invoices;
+   saveLocalOnly();
+   $('driveSettings').onclick=()=>{$('drivePanel').classList.toggle('hidden');$('driveUrl').value=driveUrl()};
+$('saveDriveUrl').onclick=()=>{const u=$('driveUrl').value.trim();if(!/^https:\/\/script\.google\.com\/macros\/s\//.test(u)){toast('Invalid Apps Script URL');return}localStorage.setItem('SURYA_DRIVE_URL',u);toast('Drive URL saved');backupToDrive(true)};
+$('backupNow').onclick=()=>backupToDrive(true);
+$('restoreNow').onclick=()=>{if(confirm('Restore from Drive and replace this phone data?'))restoreFromDrive()};
+$('driveUrl').value=driveUrl();
+let countMap={},countPhoto='';
+function renderCount(){const list=$('countList');list.innerHTML='';let total=0;Object.values(countMap).forEach(x=>{total+=x.qty;const d=document.createElement('div');d.className='product';d.innerHTML=`<div style="width:64px;height:64px;border:1px solid #ddd;border-radius:8px;display:grid;place-items:center">${x.photo?`<img src="${x.photo}" style="width:64px;height:64px;object-fit:contain;border-radius:8px">`:'📦'}</div><div><div class="name">${esc(x.name||'New Product')}</div><div class="small">${esc(x.sku||'')} • ${esc(x.barcode)}</div><div class="price">MRP ₹${money(x.mrp||0)}</div><div class="stock">Counted: ${x.qty} • Existing: ${x.existing||0}</div></div><button class="danger" data-count-code="${esc(x.barcode)}">−</button>`;list.appendChild(d)});list.querySelectorAll('[data-count-code]').forEach(b=>b.onclick=()=>{let c=b.dataset.countCode;if(countMap[c]){countMap[c].qty--;if(countMap[c].qty<=0)delete countMap[c];renderCount()}});$('countTotal').textContent=total}
+function setCountProduct(code){code=String(code).trim();if(!code)return;let p=findProduct(code);if(!countMap[code])countMap[code]={barcode:code,sku:p?.sku||'',name:p?.name||'',mrp:p?.mrp||0,photo:p?.photo||'',qty:0,existing:p?.qty||0};countMap[code].qty++;$('countCurrent').innerHTML=`<strong>✓ ${esc(p?.name||'New barcode')}</strong><div class="small">Barcode: ${esc(code)} — Count: ${countMap[code].qty}</div>`;renderCount()}
+$('countPhotoFile').onchange=e=>fileToData(e.target.files[0],x=>countPhoto=x);
+$('countStart').onclick=()=>{ $('countCameraFile').click(); };
+$('countCameraFile').onchange=e=>decodeCountFile(e.target.files[0]);
+$('countStop').onclick=()=>{stopCamera();$('countCamera').classList.add('hidden')};
+$('countManual').onclick=()=>{let c=prompt('Barcode / EAN / SKU');if(c)setCountProduct(c)};
+async function scanCountLoop(video){if(!('BarcodeDetector' in window)){toast('Live scanner unavailable here. Use manual barcode or camera photo.');return}const detector=new BarcodeDetector({formats:['ean_13','ean_8','code_128','upc_a','upc_e','qr_code']});let last='',lastAt=0;while(stream){try{const codes=await detector.detect(video);if(codes.length){const code=codes[0].rawValue,now=Date.now();if(code!==last||now-lastAt>1200){last=code;lastAt=now;setCountProduct(code)}}}catch(e){}await new Promise(r=>setTimeout(r,180))}}
+async function decodeCountFile(file){if(!file)return;if(!('BarcodeDetector' in window)){toast('Barcode photo scanning not supported here. Use manual barcode.');return}try{const detector=new BarcodeDetector({formats:['ean_13','ean_8','code_128','upc_a','upc_e','qr_code']});const img=new Image(),url=URL.createObjectURL(file);img.onload=async()=>{try{const codes=await detector.detect(img);if(!codes.length){toast('Barcode not found in photo');return}setCountProduct(codes[0].rawValue)}catch(e){toast('Could not read barcode')}finally{URL.revokeObjectURL(url)}};img.src=url}catch(e){toast('Scanner unavailable')}}
+$('countSave').onclick=()=>{const entries=Object.values(countMap);if(!entries.length){toast('No stock counted');return}const latest=entries[entries.length-1];if(!findProduct(latest.barcode)){latest.name=$('countName').value.trim()||latest.name;latest.sku=$('countSku').value.trim()||latest.sku;latest.mrp=Number($('countMrp').value)||latest.mrp;if(countPhoto)latest.photo=countPhoto}for(const x of entries){let p=findProduct(x.barcode);if(p){p.qty+=x.qty;if(x.photo)p.photo=x.photo}else{if(!x.name||!x.mrp){toast('For a new barcode, enter Product Name and MRP');return}stock.push({barcode:x.barcode,sku:x.sku,name:x.name,mrp:Number(x.mrp),qty:x.qty,photo:x.photo||countPhoto||''})}}save();countMap={};countPhoto='';renderCount();renderProducts();['countName','countSku','countMrp'].forEach(id=>$(id).value='');toast('Existing stock added successfully')};
+$('countClear').onclick=()=>{countMap={};countPhoto='';renderCount();$('countCurrent').innerHTML='<strong>Ready</strong><div class="small">No barcode scanned yet.</div>'};
+renderCart();renderProducts();
+   $('driveStatus').textContent='Restored: '+new Date().toLocaleString('en-IN');
+   toast('Restore complete');
+ }catch(e){$('driveStatus').textContent='Restore failed. Check URL/internet.';toast('Restore failed')}
+}
+function saveLocalOnly(){
+ localStorage.setItem(KEY,JSON.stringify(stock));
+ localStorage.setItem(INV,JSON.stringify(invoices));
+}
+function toast(x){$('toast').textContent=x;$('toast').style.display='block';setTimeout(()=>$('toast').style.display='none',1800)}
+function tabs(id){document.querySelectorAll('.tab').forEach(x=>x.classList.add('hidden'));$(id).classList.remove('hidden');document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('primary',x.dataset.tab===id));if(id==='products')renderProducts()}
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>tabs(b.dataset.tab));
+function findProduct(code){return stock.find(p=>p.barcode===String(code)||p.sku===String(code))}
+function addToCart(code){
+ const p=findProduct(code); if(!p){toast('Product not found');return}
+ const old=cart.find(x=>x.barcode===p.barcode);
+ if(old){if(old.qty>=p.qty){toast('Stock not available');return}old.qty++}else cart.push({...p,qty:1});
+ renderCart();toast('Added: '+p.name);
+}
+function renderCart(){
+ const tb=$('invoiceTable').querySelector('tbody');tb.innerHTML='';let total=0;
+ cart.forEach((p,i)=>{let line=p.mrp*p.qty;total+=line;let tr=document.createElement('tr');tr.innerHTML=`<td>${esc(p.name)}<div class="small">${esc(p.sku||'')}</div></td><td>₹${money(p.mrp)}</td><td><input style="width:70px" type="number" min="1" max="${p.qty}" value="${p.qty}" data-i="${i}" class="q"></td><td>₹${money(line)}</td><td><button data-i="${i}" class="danger rm">×</button></td>`;tb.appendChild(tr)});
+ tb.querySelectorAll('.q').forEach(x=>x.onchange=()=>{let i=+x.dataset.i;let n=Math.max(1,Math.min(stock.find(p=>p.barcode===cart[i].barcode).qty,+x.value||1));cart[i].qty=n;renderCart()});
+ tb.querySelectorAll('.rm').forEach(x=>x.onclick=()=>{cart.splice(+x.dataset.i,1);renderCart()});$('invoiceTotal').textContent=money(total)
+}
+function money(n){return (Number(n)||0).toFixed(2)}
+function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+function renderProducts(){
+ const q=$('search').value.toLowerCase(), list=$('productList');list.innerHTML='';
+ stock.filter(p=>(p.name+' '+p.sku+' '+p.barcode).toLowerCase().includes(q)).forEach(p=>{
+  let d=document.createElement('div');d.className='product';d.innerHTML=`${p.photo?`<img src="${p.photo}">`:'<div style="width:64px;height:64px;border:1px solid #ddd;border-radius:8px;display:grid;place-items:center">📦</div>'}<div><div class="name">${esc(p.name)}</div><div class="small">${esc(p.sku)} • ${esc(p.barcode)}</div><div class="price">MRP ₹${money(p.mrp)}</div><div class="stock">Stock: ${p.qty}</div></div><button class="saleQuick" data-code="${esc(p.barcode)}">Sale</button>`;list.appendChild(d)
+ });list.querySelectorAll('.saleQuick').forEach(b=>b.onclick=()=>{tabs('sale');addToCart(b.dataset.code)})
+}
+$('search').oninput=renderProducts;
+function fileToData(file,cb){if(!file)return;let r=new FileReader();r.onload=()=>cb(r.result);r.readAsDataURL(file)}
+$('stockPhotoBtn').onclick=()=>$('stockPhoto').click();$('stockPhoto').onchange=e=>fileToData(e.target.files[0],x=>currentPhoto=x);
+$('sPhotoFile').onchange=e=>fileToData(e.target.files[0],x=>currentPhoto=x);
+$('addStock').onclick=()=>{
+ let barcode=$('sBarcode').value.trim(),sku=$('sSku').value.trim(),name=$('sName').value.trim(),mrp=Number($('sMrp').value),qty=Number($('sQty').value);
+ if(!barcode||!name||!mrp||qty<1){toast('Barcode, Name, MRP and Qty required');return}
+ let p=findProduct(barcode);if(p){p.qty+=qty;p.name=name;p.sku=sku||p.sku;p.mrp=mrp;if(currentPhoto)p.photo=currentPhoto}else stock.push({barcode,sku,name,mrp,qty,photo:currentPhoto});
+ save();renderProducts();toast('Stock updated');['sBarcode','sSku','sName','sMrp'].forEach(id=>$(id).value='');$('sQty').value=1;currentPhoto='';
+};
+$('resetStock').onclick=()=>{['sBarcode','sSku','sName','sMrp'].forEach(id=>$(id).value='');$('sQty').value=1;currentPhoto=''};
+$('stockPdf').onchange=e=>{if(e.target.files[0])toast('PDF selected: '+e.target.files[0].name)};
+async function startCamera(video,mode){
+ if(!navigator.mediaDevices?.getUserMedia){toast('Camera unavailable in this browser');return}
+ try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}}});video.srcObject=stream;await video.play();cameraMode=mode;return true}catch(e){toast('Camera permission required');return false}
+}
+function stopCamera(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}}
+async function scanLoop(video,mode){
+ if(!('BarcodeDetector' in window)){toast('Barcode scan not supported; use Enter Barcode');return}
+ const detector=new BarcodeDetector({formats:['ean_13','ean_8','code_128','upc_a','upc_e','qr_code']});
+ let active=true;while(active&&stream){
+  try{let codes=await detector.detect(video);if(codes.length){let c=codes[0].rawValue;if(mode==='sale'){addToCart(c);$('saleCamera').classList.add('hidden')}else{$('sBarcode').value=c;$('stockCamera').classList.add('hidden')}stopCamera();active=false;break}}catch(e){}
+  await new Promise(r=>setTimeout(r,250));
+ }
+}
+async function decodeBarcodeFile(file,mode){
+ if(!file)return;
+ if(!('BarcodeDetector' in window)){toast('Barcode photo scanning is not supported here. Use Enter Barcode.');return}
+ try{
+   const detector=new BarcodeDetector({formats:['ean_13','ean_8','code_128','upc_a','upc_e','qr_code']});
+   const img=new Image();
+   const url=URL.createObjectURL(file);
+   img.onload=async()=>{
+     try{
+       const codes=await detector.detect(img);
+       if(!codes.length){toast('Barcode not found in photo');return}
+       const code=codes[0].rawValue;
+       if(mode==='sale') addToCart(code);
+       else $('sBarcode').value=code;
+     }catch(e){toast('Could not read barcode from photo')}
+     finally{URL.revokeObjectURL(url)}
+   };
+   img.src=url;
+ }catch(e){toast('Barcode scanner unavailable')}
+}
+$('scanSale').onclick=()=>{ $('saleCameraFile').click(); };
+$('saleCameraFile').onchange=e=>decodeBarcodeFile(e.target.files[0],'sale');
+$('stopCamera').onclick=()=>{stopCamera();$('saleCamera').classList.add('hidden')};
+$('manualSale').onclick=()=>{let c=prompt('Barcode / EAN / SKU');if(c)addToCart(c.trim())};
+$('stockScan').onclick=()=>{ $('stockCameraFile').click(); };
+$('stockCameraFile').onchange=e=>decodeBarcodeFile(e.target.files[0],'stock');
+$('stockStop').onclick=()=>{stopCamera();$('stockCamera').classList.add('hidden')};
+$('saveInvoice').onclick=()=>{
+ if(!cart.length){toast('Invoice is empty');return}
+ for(const x of cart){const p=stock.find(p=>p.barcode===x.barcode);if(!p||p.qty<x.qty){toast('Insufficient stock');return}}
+ cart.forEach(x=>stock.find(p=>p.barcode===x.barcode).qty-=x.qty);
+ const inv={no:'SI-'+Date.now(),date:new Date().toLocaleString('en-IN'),customer:$('customer').value||'Cash Customer',items:cart.map(x=>({barcode:x.barcode,sku:x.sku,name:x.name,mrp:x.mrp,qty:x.qty})),total:cart.reduce((s,x)=>s+x.mrp*x.qty,0)};
+ invoices.unshift(inv);save();preparePrint(inv);window.print();cart=[];renderCart();$('customer').value='';renderProducts()
+};
+function preparePrint(inv){
+ $('printMeta').innerHTML=`Invoice No: ${esc(inv.no)}<br>Date: ${esc(inv.date)}<br>Customer: ${esc(inv.customer)}`;
+ $('printTable').innerHTML='<tr><th>Product</th><th>SKU</th><th>MRP</th><th>Qty</th><th>Total</th></tr>'+inv.items.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.sku)}</td><td>₹${money(x.mrp)}</td><td>${x.qty}</td><td>₹${money(x.mrp*x.qty)}</td></tr>`).join('');
+ $('printTotal').innerHTML='<h3>Total: ₹'+money(inv.total)+'</h3>'
+}
+$('clearSale').onclick=()=>{cart=[];renderCart()};
+$('stockPdfBtn').onclick=()=>{let rows=stock.filter(x=>x.qty>0);$('printMeta').innerHTML=`Stock Report — ${new Date().toLocaleString('en-IN')}`;$('printTable').innerHTML='<tr><th>Product</th><th>Barcode</th><th>SKU</th><th>MRP</th><th>Stock</th></tr>'+rows.map(x=>`<tr><td>${esc(x.name)}</td><td>${esc(x.barcode)}</td><td>${esc(x.sku)}</td><td>₹${money(x.mrp)}</td><td>${x.qty}</td></tr>`).join('');$('printTotal').innerHTML='<h3>Products: '+rows.length+'</h3>';window.print()};
+$('invoiceHistoryBtn').onclick=()=>{$('history').innerHTML=invoices.length?invoices.map(i=>`<div class="panel"><b>${esc(i.no)}</b> — ${esc(i.date)} — ${esc(i.customer)} — ₹${money(i.total)}</div>`).join(''):'No invoices yet.'};
+$('driveSettings').onclick=()=>{$('drivePanel').classList.toggle('hidden');$('driveUrl').value=driveUrl()};
+$('saveDriveUrl').onclick=()=>{const u=$('driveUrl').value.trim();if(!/^https:\/\/script\.google\.com\/macros\/s\//.test(u)){toast('Invalid Apps Script URL');return}localStorage.setItem('SURYA_DRIVE_URL',u);toast('Drive URL saved');backupToDrive(true)};
+$('backupNow').onclick=()=>backupToDrive(true);
+$('restoreNow').onclick=()=>{if(confirm('Restore from Drive and replace this phone data?'))restoreFromDrive()};
+$('driveUrl').value=driveUrl();
+let countMap={},countPhoto='';
+function renderCount(){const list=$('countList');list.innerHTML='';let total=0;Object.values(countMap).forEach(x=>{total+=x.qty;const d=document.createElement('div');d.className='product';d.innerHTML=`<div style="width:64px;height:64px;border:1px solid #ddd;border-radius:8px;display:grid;place-items:center">${x.photo?`<img src="${x.photo}" style="width:64px;height:64px;object-fit:contain;border-radius:8px">`:'📦'}</div><div><div class="name">${esc(x.name||'New Product')}</div><div class="small">${esc(x.sku||'')} • ${esc(x.barcode)}</div><div class="price">MRP ₹${money(x.mrp||0)}</div><div class="stock">Counted: ${x.qty} • Existing: ${x.existing||0}</div></div><button class="danger" data-count-code="${esc(x.barcode)}">−</button>`;list.appendChild(d)});list.querySelectorAll('[data-count-code]').forEach(b=>b.onclick=()=>{let c=b.dataset.countCode;if(countMap[c]){countMap[c].qty--;if(countMap[c].qty<=0)delete countMap[c];renderCount()}});$('countTotal').textContent=total}
+function setCountProduct(code){code=String(code).trim();if(!code)return;let p=findProduct(code);if(!countMap[code])countMap[code]={barcode:code,sku:p?.sku||'',name:p?.name||'',mrp:p?.mrp||0,photo:p?.photo||'',qty:0,existing:p?.qty||0};countMap[code].qty++;$('countCurrent').innerHTML=`<strong>✓ ${esc(p?.name||'New barcode')}</strong><div class="small">Barcode: ${esc(code)} — Count: ${countMap[code].qty}</div>`;renderCount()}
+$('countPhotoFile').onchange=e=>fileToData(e.target.files[0],x=>countPhoto=x);
+$('countStart').onclick=()=>{ $('countCameraFile').click(); };
+$('countCameraFile').onchange=e=>decodeCountFile(e.target.files[0]);
+$('countStop').onclick=()=>{stopCamera();$('countCamera').classList.add('hidden')};
+$('countManual').onclick=()=>{let c=prompt('Barcode / EAN / SKU');if(c)setCountProduct(c)};
+async function scanCountLoop(video){if(!('BarcodeDetector' in window)){toast('Live scanner unavailable here. Use manual barcode or camera photo.');return}const detector=new BarcodeDetector({formats:['ean_13','ean_8','code_128','upc_a','upc_e','qr_code']});let last='',lastAt=0;while(stream){try{const codes=await detector.detect(video);if(codes.length){const code=codes[0].rawValue,now=Date.now();if(code!==last||now-lastAt>1200){last=code;lastAt=now;setCountProduct(code)}}}catch(e){}await new Promise(r=>setTimeout(r,180))}}
+async function decodeCountFile(file){if(!file)return;if(!('BarcodeDetector' in window)){toast('Barcode photo scanning not supported here. Use manual barcode.');return}try{const detector=new BarcodeDetector({formats:['ean_13','ean_8','code_128','upc_a','upc_e','qr_code']});const img=new Image(),url=URL.createObjectURL(file);img.onload=async()=>{try{const codes=await detector.detect(img);if(!codes.length){toast('Barcode not found in photo');return}setCountProduct(codes[0].rawValue)}catch(e){toast('Could not read barcode')}finally{URL.revokeObjectURL(url)}};img.src=url}catch(e){toast('Scanner unavailable')}}
+$('countSave').onclick=()=>{const entries=Object.values(countMap);if(!entries.length){toast('No stock counted');return}const latest=entries[entries.length-1];if(!findProduct(latest.barcode)){latest.name=$('countName').value.trim()||latest.name;latest.sku=$('countSku').value.trim()||latest.sku;latest.mrp=Number($('countMrp').value)||latest.mrp;if(countPhoto)latest.photo=countPhoto}for(const x of entries){let p=findProduct(x.barcode);if(p){p.qty+=x.qty;if(x.photo)p.photo=x.photo}else{if(!x.name||!x.mrp){toast('For a new barcode, enter Product Name and MRP');return}stock.push({barcode:x.barcode,sku:x.sku,name:x.name,mrp:Number(x.mrp),qty:x.qty,photo:x.photo||countPhoto||''})}}save();countMap={};countPhoto='';renderCount();renderProducts();['countName','countSku','countMrp'].forEach(id=>$(id).value='');toast('Existing stock added successfully')};
+$('countClear').onclick=()=>{countMap={};countPhoto='';renderCount();$('countCurrent').innerHTML='<strong>Ready</strong><div class="small">No barcode scanned yet.</div>'};
+renderCart();renderProducts();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  });
+}
+</script>
+
+</body>
+</html>
